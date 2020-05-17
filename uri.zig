@@ -49,6 +49,8 @@ pub fn parse(text: []const u8) ParseError!UriComponents {
         std.debug.assert(reader.get().? == '/');
 
         const authority = reader.readUntil(isAuthoritySeparator);
+        if (authority.len == 0)
+            return error.InvalidFormat;
 
         var start_of_host: usize = 0;
         if (std.mem.indexOf(u8, authority, "@")) |index| {
@@ -213,6 +215,10 @@ fn isQuerySeparator(c: u8) bool {
         '#' => true,
         else => false,
     };
+}
+
+test "should fail gracefully" {
+    std.testing.expectEqual(@as(ParseError!UriComponents, error.InvalidFormat), parse("foobar://"));
 }
 
 test "scheme" {
