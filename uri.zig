@@ -16,6 +16,84 @@ pub const UriComponents = struct {
     fragment: ?[]const u8,
 };
 
+/// Applies URI encoding and replaces all reserved characters with their respective %XX code.
+pub fn escapeString(allocator: *std.mem.Allocator, input: []const u8) error{OutOfMemory}![]const u8 {
+    var outsize: usize = 0;
+    for (input) |c| {
+        outsize += if (isUnreserved(c)) @as(usize, 1) else 3;
+    }
+    var output = try allocator.alloc(u8, outsize);
+    var outptr: usize = 0;
+
+    for (input) |c| {
+        if (isUnreserved(c)) {
+            output[outptr] = c;
+            outptr += 1;
+        } else {
+            var buf: [2]u8 = undefined;
+            _ = std.fmt.bufPrint(&buf, "{X:0>2}", .{c}) catch unreachable;
+
+            output[outptr + 0] = '%';
+            output[outptr + 1] = buf[0];
+            output[outptr + 2] = buf[1];
+            outptr += 3;
+        }
+    }
+    return output;
+}
+
+/// Parses a URI string and unescapes all %XX where XX is a valid hex number. Otherwise, verbatim copies
+/// them to the output.
+pub fn unescapeString(allocator: *std.mem.Allocator, input: []const u8) error{OutOfMemory}![]const u8 {
+    var outsize: usize = 0;
+    var inptr: usize = 0;
+    while (inptr < input.len) {
+        if (input[inptr] == '%') {
+            inptr += 1;
+            if (inptr + 2 <= input.len) {
+                _ = std.fmt.parseInt(u8, input[inptr..][0..2], 16) catch {
+                    outsize += 3;
+                    inptr += 2;
+                    continue;
+                };
+                inptr += 2;
+                outsize += 1;
+            }
+        } else {
+            inptr += 1;
+            outsize += 1;
+        }
+    }
+
+    var output = try allocator.alloc(u8, outsize);
+    var outptr: usize = 0;
+    inptr = 0;
+    while (inptr < input.len) {
+        if (input[inptr] == '%') {
+            inptr += 1;
+            if (inptr + 2 <= input.len) {
+                const value = std.fmt.parseInt(u8, input[inptr..][0..2], 16) catch {
+                    output[outptr + 0] = input[inptr + 0];
+                    output[outptr + 1] = input[inptr + 1];
+                    inptr += 2;
+                    outptr += 2;
+                    continue;
+                };
+
+                output[outptr] = value;
+
+                inptr += 2;
+                outptr += 1;
+            }
+        } else {
+            output[outptr] = input[inptr];
+            inptr += 1;
+            outptr += 1;
+        }
+    }
+    return output;
+}
+
 pub const ParseError = error{ UnexpectedCharacter, InvalidFormat, InvalidPort };
 
 /// Parses the URI or returns an error.
@@ -402,4 +480,24 @@ test "Examples from RFC3986" {
 test "Special test" {
     // This is for all of you code readers ♥
     _ = try parse("https://www.youtube.com/watch?v=dQw4w9WgXcQ&feature=youtu.be&t=0");
+}
+
+test "URI escaping" {
+    const input = "\\ö/ äöß ~~.adas-https://canvas:123/#ads&&sad";
+    const expected = "%5C%C3%B6%2F%20%C3%A4%C3%B6%C3%9F%20~~.adas-https%3A%2F%2Fcanvas%3A123%2F%23ads%26%26sad";
+
+    const actual = try escapeString(std.testing.allocator, input);
+    defer std.testing.allocator.free(actual);
+
+    std.testing.expectEqualSlices(u8, expected, actual);
+}
+
+test "URI unescaping" {
+    const input = "%5C%C3%B6%2F%20%C3%A4%C3%B6%C3%9F%20~~.adas-https%3A%2F%2Fcanvas%3A123%2F%23ads%26%26sad";
+    const expected = "\\ö/ äöß ~~.adas-https://canvas:123/#ads&&sad";
+
+    const actual = try unescapeString(std.testing.allocator, input);
+    defer std.testing.allocator.free(actual);
+
+    std.testing.expectEqualSlices(u8, expected, actual);
 }
