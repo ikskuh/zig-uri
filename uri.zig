@@ -347,7 +347,7 @@ test "authority.password" {
     std.testing.expectEqualSlices(u8, ":", (try parse("scheme://username::@a")).password.?);
 }
 
-fn testAuthorityHost(comptime hostlist: var) !void {
+fn testAuthorityHost(comptime hostlist: anytype) !void {
     inline for (hostlist) |hostname| {
         std.testing.expectEqualSlices(u8, hostname, (try parse("scheme://" ++ hostname)).host.?);
     }
