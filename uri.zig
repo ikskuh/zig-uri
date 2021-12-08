@@ -17,7 +17,7 @@ pub const UriComponents = struct {
 };
 
 /// Applies URI encoding and replaces all reserved characters with their respective %XX code.
-pub fn escapeString(allocator: *std.mem.Allocator, input: []const u8) error{OutOfMemory}![]const u8 {
+pub fn escapeString(allocator: std.mem.Allocator, input: []const u8) error{OutOfMemory}![]const u8 {
     var outsize: usize = 0;
     for (input) |c| {
         outsize += if (isUnreserved(c)) @as(usize, 1) else 3;
@@ -44,7 +44,7 @@ pub fn escapeString(allocator: *std.mem.Allocator, input: []const u8) error{OutO
 
 /// Parses a URI string and unescapes all %XX where XX is a valid hex number. Otherwise, verbatim copies
 /// them to the output.
-pub fn unescapeString(allocator: *std.mem.Allocator, input: []const u8) error{OutOfMemory}![]const u8 {
+pub fn unescapeString(allocator: std.mem.Allocator, input: []const u8) error{OutOfMemory}![]const u8 {
     var outsize: usize = 0;
     var inptr: usize = 0;
     while (inptr < input.len) {
@@ -296,60 +296,60 @@ fn isQuerySeparator(c: u8) bool {
 }
 
 test "should fail gracefully" {
-    std.testing.expectEqual(@as(ParseError!UriComponents, error.InvalidFormat), parse("foobar://"));
+    try std.testing.expectEqual(@as(ParseError!UriComponents, error.InvalidFormat), parse("foobar://"));
 }
 
 test "scheme" {
-    std.testing.expectEqualSlices(u8, "http", (try parse("http:_")).scheme.?);
-    std.testing.expectEqualSlices(u8, "scheme-mee", (try parse("scheme-mee:_")).scheme.?);
-    std.testing.expectEqualSlices(u8, "a.b.c", (try parse("a.b.c:_")).scheme.?);
-    std.testing.expectEqualSlices(u8, "ab+", (try parse("ab+:_")).scheme.?);
-    std.testing.expectEqualSlices(u8, "X+++", (try parse("X+++:_")).scheme.?);
-    std.testing.expectEqualSlices(u8, "Y+-.", (try parse("Y+-.:_")).scheme.?);
+    try std.testing.expectEqualSlices(u8, "http", (try parse("http:_")).scheme.?);
+    try std.testing.expectEqualSlices(u8, "scheme-mee", (try parse("scheme-mee:_")).scheme.?);
+    try std.testing.expectEqualSlices(u8, "a.b.c", (try parse("a.b.c:_")).scheme.?);
+    try std.testing.expectEqualSlices(u8, "ab+", (try parse("ab+:_")).scheme.?);
+    try std.testing.expectEqualSlices(u8, "X+++", (try parse("X+++:_")).scheme.?);
+    try std.testing.expectEqualSlices(u8, "Y+-.", (try parse("Y+-.:_")).scheme.?);
 }
 
 test "authority" {
-    std.testing.expectEqualSlices(u8, "hostname", (try parse("scheme://hostname")).host.?);
+    try std.testing.expectEqualSlices(u8, "hostname", (try parse("scheme://hostname")).host.?);
 
-    std.testing.expectEqualSlices(u8, "hostname", (try parse("scheme://userinfo@hostname")).host.?);
-    std.testing.expectEqualSlices(u8, "userinfo", (try parse("scheme://userinfo@hostname")).user.?);
-    std.testing.expectEqual(@as(?[]const u8, null), (try parse("scheme://userinfo@hostname")).password);
+    try std.testing.expectEqualSlices(u8, "hostname", (try parse("scheme://userinfo@hostname")).host.?);
+    try std.testing.expectEqualSlices(u8, "userinfo", (try parse("scheme://userinfo@hostname")).user.?);
+    try std.testing.expectEqual(@as(?[]const u8, null), (try parse("scheme://userinfo@hostname")).password);
 
-    std.testing.expectEqualSlices(u8, "hostname", (try parse("scheme://user:password@hostname")).host.?);
-    std.testing.expectEqualSlices(u8, "user", (try parse("scheme://user:password@hostname")).user.?);
-    std.testing.expectEqualSlices(u8, "password", (try parse("scheme://user:password@hostname")).password.?);
+    try std.testing.expectEqualSlices(u8, "hostname", (try parse("scheme://user:password@hostname")).host.?);
+    try std.testing.expectEqualSlices(u8, "user", (try parse("scheme://user:password@hostname")).user.?);
+    try std.testing.expectEqualSlices(u8, "password", (try parse("scheme://user:password@hostname")).password.?);
 
-    std.testing.expectEqualSlices(u8, "hostname", (try parse("scheme://hostname:0")).host.?);
-    std.testing.expectEqual(@as(u16, 1234), (try parse("scheme://hostname:1234")).port.?);
+    try std.testing.expectEqualSlices(u8, "hostname", (try parse("scheme://hostname:0")).host.?);
+    try std.testing.expectEqual(@as(u16, 1234), (try parse("scheme://hostname:1234")).port.?);
 
-    std.testing.expectEqualSlices(u8, "hostname", (try parse("scheme://userinfo@hostname:1234")).host.?);
-    std.testing.expectEqual(@as(u16, 1234), (try parse("scheme://userinfo@hostname:1234")).port.?);
-    std.testing.expectEqualSlices(u8, "userinfo", (try parse("scheme://userinfo@hostname:1234")).user.?);
-    std.testing.expectEqual(@as(?[]const u8, null), (try parse("scheme://userinfo@hostname:1234")).password);
+    try std.testing.expectEqualSlices(u8, "hostname", (try parse("scheme://userinfo@hostname:1234")).host.?);
+    try std.testing.expectEqual(@as(u16, 1234), (try parse("scheme://userinfo@hostname:1234")).port.?);
+    try std.testing.expectEqualSlices(u8, "userinfo", (try parse("scheme://userinfo@hostname:1234")).user.?);
+    try std.testing.expectEqual(@as(?[]const u8, null), (try parse("scheme://userinfo@hostname:1234")).password);
 
-    std.testing.expectEqualSlices(u8, "hostname", (try parse("scheme://user:password@hostname:1234")).host.?);
-    std.testing.expectEqual(@as(u16, 1234), (try parse("scheme://user:password@hostname:1234")).port.?);
-    std.testing.expectEqualSlices(u8, "user", (try parse("scheme://user:password@hostname:1234")).user.?);
-    std.testing.expectEqualSlices(u8, "password", (try parse("scheme://user:password@hostname:1234")).password.?);
+    try std.testing.expectEqualSlices(u8, "hostname", (try parse("scheme://user:password@hostname:1234")).host.?);
+    try std.testing.expectEqual(@as(u16, 1234), (try parse("scheme://user:password@hostname:1234")).port.?);
+    try std.testing.expectEqualSlices(u8, "user", (try parse("scheme://user:password@hostname:1234")).user.?);
+    try std.testing.expectEqualSlices(u8, "password", (try parse("scheme://user:password@hostname:1234")).password.?);
 }
 
 test "authority.password" {
-    std.testing.expectEqualSlices(u8, "username", (try parse("scheme://username@a")).user.?);
-    std.testing.expectEqual(@as(?[]const u8, null), (try parse("scheme://username@a")).password);
+    try std.testing.expectEqualSlices(u8, "username", (try parse("scheme://username@a")).user.?);
+    try std.testing.expectEqual(@as(?[]const u8, null), (try parse("scheme://username@a")).password);
 
-    std.testing.expectEqualSlices(u8, "username", (try parse("scheme://username:@a")).user.?);
-    std.testing.expectEqual(@as(?[]const u8, null), (try parse("scheme://username:@a")).password);
+    try std.testing.expectEqualSlices(u8, "username", (try parse("scheme://username:@a")).user.?);
+    try std.testing.expectEqual(@as(?[]const u8, null), (try parse("scheme://username:@a")).password);
 
-    std.testing.expectEqualSlices(u8, "username", (try parse("scheme://username:password@a")).user.?);
-    std.testing.expectEqualSlices(u8, "password", (try parse("scheme://username:password@a")).password.?);
+    try std.testing.expectEqualSlices(u8, "username", (try parse("scheme://username:password@a")).user.?);
+    try std.testing.expectEqualSlices(u8, "password", (try parse("scheme://username:password@a")).password.?);
 
-    std.testing.expectEqualSlices(u8, "username", (try parse("scheme://username::@a")).user.?);
-    std.testing.expectEqualSlices(u8, ":", (try parse("scheme://username::@a")).password.?);
+    try std.testing.expectEqualSlices(u8, "username", (try parse("scheme://username::@a")).user.?);
+    try std.testing.expectEqualSlices(u8, ":", (try parse("scheme://username::@a")).password.?);
 }
 
 fn testAuthorityHost(comptime hostlist: anytype) !void {
     inline for (hostlist) |hostname| {
-        std.testing.expectEqualSlices(u8, hostname, (try parse("scheme://" ++ hostname)).host.?);
+        try std.testing.expectEqualSlices(u8, hostname, (try parse("scheme://" ++ hostname)).host.?);
     }
 }
 
@@ -399,7 +399,7 @@ test "authority.IPv6" {
 
 test "RFC example 1" {
     const uri = "foo://example.com:8042/over/there?name=ferret#nose";
-    std.testing.expectEqual(UriComponents{
+    try std.testing.expectEqual(UriComponents{
         .scheme = uri[0..3],
         .user = null,
         .password = null,
@@ -413,7 +413,7 @@ test "RFC example 1" {
 
 test "RFX example 2" {
     const uri = "urn:example:animal:ferret:nose";
-    std.testing.expectEqual(UriComponents{
+    try std.testing.expectEqual(UriComponents{
         .scheme = uri[0..3],
         .user = null,
         .password = null,
@@ -489,7 +489,7 @@ test "URI escaping" {
     const actual = try escapeString(std.testing.allocator, input);
     defer std.testing.allocator.free(actual);
 
-    std.testing.expectEqualSlices(u8, expected, actual);
+    try std.testing.expectEqualSlices(u8, expected, actual);
 }
 
 test "URI unescaping" {
@@ -499,5 +499,5 @@ test "URI unescaping" {
     const actual = try unescapeString(std.testing.allocator, input);
     defer std.testing.allocator.free(actual);
 
-    std.testing.expectEqualSlices(u8, expected, actual);
+    try std.testing.expectEqualSlices(u8, expected, actual);
 }
