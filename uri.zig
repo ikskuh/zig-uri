@@ -11,7 +11,7 @@ pub const UriComponents = struct {
     password: ?[]const u8,
     host: ?[]const u8,
     port: ?u16,
-    path: ?[]const u8,
+    path: []const u8,
     query: ?[]const u8,
     fragment: ?[]const u8,
 };
@@ -105,7 +105,7 @@ pub fn parse(text: []const u8) ParseError!UriComponents {
         .password = null,
         .host = null,
         .port = null,
-        .path = null,
+        .path = "", // path is always set, but empty by default.
         .query = null,
         .fragment = null,
     };
